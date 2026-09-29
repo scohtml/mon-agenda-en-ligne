@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agenda mensuel personnel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: en-tête avec navigation de mois, grille 7 colonnes lundi→dimanche ; en dessous de 720px, liste jour par jour. */
+:root{
+  --bg:#f5f6f4; --surface:#ffffff; --fg:#1d2522; --muted:#66716c; --line:#d9dedb;
+  --accent:#2f6f62; --accent-soft:#e3efeb; --weekend:#eef1ef; --ferie:#a1512f; --ferie-soft:#f7e9e2;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#95a19b; --line:#2e3833;
+  --accent:#6fbfa9; --accent-soft:#213530; --weekend:#18201d; --ferie:#e39a78; --ferie-soft:#35261f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#95a19b; --line:#2e3833;
+  --accent:#6fbfa9; --accent-soft:#213530; --weekend:#18201d; --ferie:#e39a78; --ferie-soft:#35261f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:24px 40px;display:flex;flex-direction:column;gap:18px}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(28px,4.5vw,44px);line-height:1.05;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 .yr{color:var(--muted);font-weight:500}
+.nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+button{font:inherit;font-size:14px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.status{font-size:13px;color:var(--muted);min-height:1.2em}
+.status.err{color:var(--ferie)}
+
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line);background:var(--surface)}
+.dow{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:8px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg)}
+.cell{border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-height:128px;display:flex;flex-direction:column;min-width:0}
+.cell.blank{background:var(--bg)}
+.cell.we{background:var(--weekend)}
+.cell.ferie{background:var(--ferie-soft)}
+.head{display:flex;align-items:baseline;gap:8px;padding:6px 8px 0}
+.num{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums}
+.cell.today .num{background:var(--accent);color:var(--surface);border-radius:5px;padding:0 6px}
+.dname{display:none;font-size:13px;color:var(--muted)}
+.tag{font-size:11px;color:var(--ferie);text-transform:uppercase;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+textarea{flex:1;width:100%;min-height:92px;resize:vertical;border:0;background:transparent;color:var(--fg);font:inherit;font-size:14px;line-height:1.4;padding:4px 8px 8px}
+textarea::placeholder{color:transparent}
+.cell:hover textarea::placeholder,textarea:focus::placeholder{color:var(--muted)}
+
+.memo{display:flex;flex-direction:column;gap:6px}
+.memo label{font-family:var(--display);font-weight:500;font-size:18px}
+.memo textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-height:90px;padding:10px 12px}
+.foot{font-size:13px;color:var(--muted);max-width:70ch}
+
+@media (max-width:720px){
+  .grid{grid-template-columns:1fr}
+  .dow,.cell.blank{display:none}
+  .cell{min-height:0}
+  .dname{display:inline}
+  textarea{min-height:48px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.note{background:var(--accent-soft);border-radius:8px;padding:10px 14px;font-size:14px;max-width:80ch}
+.backup{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:18px}
+.backup h2{font-family:var(--display);font-weight:500;font-size:18px;margin:0}
+.backup .row{display:flex;flex-wrap:wrap;gap:8px}
+.backup textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-height:110px;padding:10px 12px;font-family:var(--mono);font-size:12px}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px}
+button.primary{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+</style>
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1 id="title">Mois</h1>
+    <div class="nav">
+      <button id="prev" type="button" aria-label="Mois précédent">← Précédent</button>
+      <button id="today" type="button">Aujourd'hui</button>
+      <button id="next" type="button" aria-label="Mois suivant">Suivant →</button>
+    </div>
+  </header>
+  <p class="note">Vos notes restent uniquement dans ce navigateur, sur cet appareil. Personne d'autre ne les voit. Elles disparaissent si vous effacez les données du navigateur ou utilisez la navigation privée : pensez à les exporter de temps en temps.</p>
+  <div class="status" id="status" role="status">Chargement…</div>
+  <div class="grid" id="grid" aria-label="Calendrier du mois"></div>
+  <div class="memo">
+    <label for="memo">Notes du mois</label>
+    <textarea id="memo" placeholder="Objectifs, rappels, points à suivre…"></textarea>
+  </div>
+  <section class="backup" aria-labelledby="bk">
+    <h2 id="bk">Sauvegarde et transfert</h2>
+    <p class="foot">Exporter copie toutes vos notes sous forme de texte. Collez ce texte dans un e-mail ou un fichier pour le garder. Sur un autre appareil, collez-le dans la zone ci-dessous puis cliquez sur Importer.</p>
+    <div class="row">
+      <button id="export" type="button">Exporter mes notes</button>
+      <button id="import" type="button">Importer</button>
+    </div>
+    <textarea id="bkText" aria-label="Texte de sauvegarde" placeholder="Collez ici un texte de sauvegarde pour l'importer."></textarea>
+    <div class="confirm" id="confirm" hidden>
+      <span>L'import remplace les notes des mois contenus dans la sauvegarde. Continuer ?</span>
+      <button id="confYes" class="primary" type="button">Oui, importer</button>
+      <button id="confNo" type="button">Annuler</button>
+    </div>
+    <div class="status" id="bkStatus" role="status"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const MOIS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  const JOURS=["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+  const STORE="agenda-personnel-v1";
+  const $=id=>document.getElementById(id);
+  const pad=n=>String(n).padStart(2,"0");
+  const now=new Date();
+  let y=now.getFullYear(), m=now.getMonth(), timer=null, storageOk=true;
+  let all={months:{}};
+
+  function readAll(){try{const r=localStorage.getItem(STORE);if(r){const v=JSON.parse(r);if(v&&v.months)all=v}}catch(e){storageOk=false}}
+  function writeAll(){try{localStorage.setItem(STORE,JSON.stringify(all));return true}catch(e){return false}}
+  const key=()=>y+"-"+pad(m+1);
+  function month(){if(!all.months[key()])all.months[key()]={days:{},memo:""};return all.months[key()]}
+
+  function paques(Y){const a=Y%19,b=Math.floor(Y/100),c=Y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,mm=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*mm+114)/31),da=((h+l-7*mm+114)%31)+1;return new Date(Y,mo-1,da)}
+  function feries(Y){
+    const p=paques(Y), add=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+    const list=[[new Date(Y,0,1),"Jour de l'an"],[add(p,1),"Lundi de Pâques"],[new Date(Y,4,1),"Fête du Travail"],[new Date(Y,4,8),"Victoire 1945"],[add(p,39),"Ascension"],[add(p,50),"Lundi de Pentecôte"],[new Date(Y,6,14),"Fête nationale"],[new Date(Y,7,15),"Assomption"],[new Date(Y,10,1),"Toussaint"],[new Date(Y,10,11),"Armistice"],[new Date(Y,11,25),"Noël"]];
+    const o={}; list.forEach(([d,n])=>{o[d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())]=n}); return o;
+  }
+  function setStatus(t,err,id){const s=$(id||"status");s.textContent=t;s.classList.toggle("err",!!err)}
+  function restStatus(){
+    if(!storageOk) return setStatus("Ce navigateur bloque l'enregistrement (navigation privée ?). Vos notes seront perdues à la fermeture : exportez-les.",true);
+    const mo=all.months[key()];
+    setStatus(mo&&mo.maj?"Enregistré dans ce navigateur · dernière modification le "+new Date(mo.maj).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}):"Aucune note ce mois-ci. Cliquez sur un jour pour écrire.");
+  }
+
+  function render(){
+    const data=all.months[key()]||{days:{},memo:""};
+    $("title").innerHTML=MOIS[m].charAt(0).toUpperCase()+MOIS[m].slice(1)+' <span class="yr">'+y+'</span>';
+    const g=$("grid"); g.innerHTML="";
+    JOURS.forEach(j=>{const d=document.createElement("div");d.className="dow";d.textContent=j.slice(0,3)+".";g.appendChild(d)});
+    const first=(new Date(y,m,1).getDay()+6)%7, n=new Date(y,m+1,0).getDate(), fer=feries(y);
+    for(let i=0;i<first;i++){const b=document.createElement("div");b.className="cell blank";g.appendChild(b)}
+    for(let d=1;d<=n;d++){
+      const dt=new Date(y,m,d), wd=(dt.getDay()+6)%7, iso=key()+"-"+pad(d), f=fer[iso];
+      const c=document.createElement("div");
+      c.className="cell"+(wd>=5?" we":"")+(f?" ferie":"")+(dt.toDateString()===now.toDateString()?" today":"");
+      const h=document.createElement("div");h.className="head";
+      const num=document.createElement("span");num.className="num";num.textContent=d;
+      const dn=document.createElement("span");dn.className="dname";dn.textContent=JOURS[wd];
+      h.append(num,dn);
+      if(f){const t=document.createElement("span");t.className="tag";t.textContent=f;t.title=f;h.appendChild(t)}
+      const ta=document.createElement("textarea");
+      ta.id="j"+pad(d); ta.placeholder="Ajouter…"; ta.setAttribute("aria-label",JOURS[wd]+" "+d+" "+MOIS[m]);
+      ta.value=(data.days&&data.days[pad(d)])||"";
+      ta.addEventListener("input",()=>{const mo=month(); if(ta.value.trim()) mo.days[pad(d)]=ta.value; else delete mo.days[pad(d)]; schedule()});
+      c.append(h,ta); g.appendChild(c);
+    }
+    $("memo").value=data.memo||"";
+    restStatus();
+  }
+
+  function schedule(){setStatus("Modifications en attente…");clearTimeout(timer);timer=setTimeout(save,700)}
+  function save(){
+    clearTimeout(timer); timer=null;
+    const mo=all.months[key()];
+    if(mo){ if(!Object.keys(mo.days).length&&!mo.memo) delete all.months[key()]; else mo.maj=new Date().toISOString(); }
+    storageOk=writeAll(); restStatus();
+  }
+  function go(delta){
+    if(timer) save();
+    if(delta===0){y=now.getFullYear();m=now.getMonth()} else {m+=delta; if(m<0){m=11;y--} if(m>11){m=0;y++}}
+    render();
+  }
+
+  $("prev").onclick=()=>go(-1); $("next").onclick=()=>go(1); $("today").onclick=()=>go(0);
+  $("memo").addEventListener("input",e=>{month().memo=e.target.value;schedule()});
+  window.addEventListener("beforeunload",()=>{if(timer) save()});
+  document.addEventListener("visibilitychange",()=>{if(document.hidden&&timer) save()});
+
+  $("export").onclick=()=>{
+    if(timer) save();
+    const txt=JSON.stringify({format:"agenda-personnel",version:1,exporte:new Date().toISOString(),months:all.months});
+    const box=$("bkText"); box.value=txt;
+    const fallback=()=>{box.focus();box.select();setStatus("Le texte est sélectionné ci-dessus : copiez-le (Ctrl+C ou appui long).",false,"bkStatus")};
+    try{navigator.clipboard.writeText(txt).then(()=>setStatus("Notes copiées. Collez-les dans un e-mail ou un fichier pour les garder.",false,"bkStatus"),fallback)}catch(e){fallback()}
+  };
+  let pending=null;
+  $("import").onclick=()=>{
+    const raw=$("bkText").value.trim();
+    if(!raw) return setStatus("Collez d'abord un texte de sauvegarde dans la zone ci-dessus.",true,"bkStatus");
+    try{const v=JSON.parse(raw); if(!v||v.format!=="agenda-personnel"||typeof v.months!=="object") throw 0; pending=v.months}
+    catch(e){pending=null;return setStatus("Ce texte n'est pas une sauvegarde de cet agenda. Vérifiez qu'il a été copié en entier.",true,"bkStatus")}
+    $("confirm").hidden=false; setStatus("",false,"bkStatus");
+  };
+  $("confNo").onclick=()=>{pending=null;$("confirm").hidden=true};
+  $("confYes").onclick=()=>{
+    if(!pending) return;
+    let n=0; Object.keys(pending).forEach(k=>{if(/^\d{4}-\d{2}$/.test(k)&&pending[k]&&typeof pending[k]==="object"){all.months[k]={days:Object.assign({},pending[k].days||{}),memo:String(pending[k].memo||""),maj:pending[k].maj||new Date().toISOString()};n++}});
+    pending=null; $("confirm").hidden=true; storageOk=writeAll(); render();
+    setStatus(n+" mois importé"+(n>1?"s":"")+".",false,"bkStatus"); $("bkText").value="";
+  };
+
+  readAll(); render();
+})();
+</script>
+
+</body>
+</html>
